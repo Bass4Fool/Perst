@@ -73,28 +73,40 @@ public class Simple
         // persistent object (including collections).
         
         //OBJECT CREATION
+        
         MyPersistentClass obj = new MyPersistentClass();
         obj.intKey = 1;
         obj.strKey = "A.B";
         obj.body = "Hello world";
+        System.out.println("Object created: " + obj.intKey+ " " +obj.strKey+ " " +obj.body);
+        
+        MyPersistentClass obj2 = new MyPersistentClass();
+        obj2.intKey = 2;
+        obj2.strKey = "A.B";
+        obj2.body = "Hello DXAT";
+        System.out.println("Object created: " + obj2.intKey+ " " +obj2.strKey+ " " +obj2.body);
         
         // It is responsibility of programmer in Perst to maintain indices: add crerted object
         // to the proper indices, exclude it from the indices when key fields are changed or object 
         // is deleted.
-        
+       
         //ADD OBJECT TO DATABASE
         root.intKeyIndex.put(obj); // add object to index on intKey field
+        root.intKeyIndex.put(obj2); // add object to index on intKey field
         root.strKeyIndex.put(obj); // add object to index in strKey field
-        // To explictiely specify value of the key it is necessary to create instance of 
+        root.strKeyIndex.put(obj2); // add object to index in strKey field
+        // To explicitely specify value of the key it is necessary to create instance of 
         // org.garret.perst.Key class which overloaded constructor will create key of correspondent 
         // type
         
         //ADD EXTERNAL KEY
         root.foreignIndex.put(new Key(1001), obj);
+        root.foreignIndex.put(new Key(1002), obj2);
 
         // Commit current transaction. It should not be done after insertion of each object since 
         // transaction commit is expensibe operation and too frequent commits leans to bad performance.
         // It is preferrable to group sequence of logicaslly relation operations into one transaction
+        
         
         //FINISH TRANSACTION
         db.commit();
@@ -103,22 +115,23 @@ public class Simple
         // single object or null if object with such key is not found
         
         //GETTING BY KEYINDEX PARAMETERS
-        System.out.println("Getting objects by indexes");
+        System.out.println('\n'+"Getting objects by unique index");
         obj = root.intKeyIndex.get(new Key(1));
-        /*System.out.println("Exact match search by intKey: " + obj);
-        obj = root.foreignIndex.get(new Key(1001));
-        System.out.println("Exact match search by foreignKey: " + obj);*/
+        System.out.println("Exact match search by intKey: " + obj);
+        obj2 = root.intKeyIndex.get(new Key(2));
+        System.out.println("Exact match search by intKey: " + obj2);
         
         // Since strKeyIndex is not unique, it is necessary to user GenericIndex.get method which returns 
         // array of objects. It takes minimal and maximal value of the key as parameters.
         // In case of strict match search, the same key should be specified as minimam and maximim
-        System.out.println("Getting objects with non-unique keys");
+        System.out.println('\n'+"Getting objects with non-unique stringKeys A.B");
         Key key = new Key("A.B"); 
         ArrayList<MyPersistentClass> result = root.strKeyIndex.getList(key, key); //Range
         for (int i = 0; i < result.size(); i++) { 
             System.out.println("Exact match search by strKey: " + result.get(i));
         }
         
+        System.out.println('\n'+"Getting objects with foreign keys in a range");
         // Get iterator through records belonging to specified key range in ascent order
         for (MyPersistentClass o:root.foreignIndex.iterator(
                                                                  new Key(100, true), // inclusive low boundary
@@ -127,32 +140,46 @@ public class Simple
         {
             System.out.println("Range search by foreign key: " + o);
         }
-
+        
+        System.out.println('\n'+"Getting objects with stringKey that begins with A. ");
         // Locate all objects which strKey starts with prefix "A."
         for (MyPersistentClass o:root.strKeyIndex.prefixIterator("A.")) { 
             System.out.println("Search by prefix: " + o);
         }
         
-        // Locate all objects which strKey is prefix of "A.B.C"
-        result = root.strKeyIndex.prefixSearchList("A.B.C");
+        System.out.println('\n'+"Getting objects with stringKey that begins with DXAT");
+        // Locate all objects which strKey is prefix of "DXAT"
+        result = root.strKeyIndex.prefixSearchList("DXAT");
+        if (result.size() == 0) System.out.println("NONE FIELDS");
         for (int i = 0; i < result.size(); i++) { 
             System.out.println("Locate prefix: " + result.get(i));
-        }
+        }     
         
+        System.out.println("UPDATING OBJECTS");
         // To update object it is necessary first to exclude it from the index:
         root.intKeyIndex.remove(obj);
+        root.intKeyIndex.remove(obj2);
         // ... then update the field
         obj.intKey = 2;
+        obj2.intKey = 3;
         // ... and insert it in the index once again
         root.intKeyIndex.put(obj);
+        root.intKeyIndex.put(obj2);
 
-
+        System.out.println("REMOVING OBJECTS");
         // When object is removed, it should be first excluded from all indices
         root.intKeyIndex.remove(obj); // when object is removed from field index, it is not neccesary explicitely specify key
         root.strKeyIndex.remove(obj);
         root.foreignIndex.remove(new Key(1001), obj); // ... and here key has to be explicitely specified
         obj.deallocate(); // explicit deallocation of object (Perst garbage collection can be used instead of explicit deallocation
 
+        // When object is removed, it should be first excluded from all indices
+        root.intKeyIndex.remove(obj2); // when object is removed from field index, it is not neccesary explicitely specify key
+        root.strKeyIndex.remove(obj2);
+        root.foreignIndex.remove(new Key(1002), obj2); // ... and here key has to be explicitely specified
+        obj2.deallocate(); // explicit deallocation of object (Perst garbage collection can be used instead of explicit deallocation
+        
+        
         // Close the database
         db.close();
     }
